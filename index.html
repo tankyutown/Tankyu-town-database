@@ -666,7 +666,7 @@ const FIELD_MAP = {
   "インタビュー本文3":   "interviewBody3",
   "インタビュー画像URL": "interviewPhoto",
   "インタビュー概要":   "interviewSummary",
-  "面談担当者":       "interviewer",
+  "インタビュー担当者":       "interviewer",
 };
 
 let allMembers = [];
@@ -1459,9 +1459,8 @@ function renderInterviewSection(m) {
   ].filter(b => b.title || b.body);
 
   const hasSummary = !!(m.interviewSummary && m.interviewSummary.trim());
-  const hasInterviewer = !!(m.interviewer && m.interviewer.trim());
 
-  if (!blocks.length && !m.interviewPhoto && !hasSummary && !hasInterviewer) {
+  if (!blocks.length && !m.interviewPhoto && !hasSummary) {
     wrap.innerHTML = "";
     return;
   }
@@ -1474,9 +1473,8 @@ function renderInterviewSection(m) {
     const linked = escaped.replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" rel="noopener">$1</a>');
     html += `<div class="interview-summary">${linked}</div>`;
   }
-  if (hasInterviewer) {
-    html += `<div class="interview-interviewer">■面談担当者：${escapeHtml(m.interviewer)}</div>`;
-  }
+  // 担当者欄はセルが空でも「■担当者：」のラベル自体は常に表示する
+  html += `<div class="interview-interviewer">■担当者：${escapeHtml(m.interviewer || "")}</div>`;
 
   blocks.forEach(b => {
     html += `<div class="interview-block">`;
