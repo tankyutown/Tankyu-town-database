@@ -658,12 +658,7 @@ const FIELD_MAP = {
   "探究タグ":  "tags",
   "写真URL":  "photo",
   "休会？":   "onLeave",
-  "インタビュー見出し1": "interviewTitle1",
-  "インタビュー本文1":   "interviewBody1",
-  "インタビュー見出し2": "interviewTitle2",
-  "インタビュー本文2":   "interviewBody2",
-  "インタビュー見出し3": "interviewTitle3",
-  "インタビュー本文3":   "interviewBody3",
+  "インタビュー本文":   "interviewFull",
   "インタビュー画像URL": "interviewPhoto",
   "インタビュー概要":   "interviewSummary",
   "インタビュー担当者":       "interviewer",
@@ -1448,16 +1443,36 @@ function openPopup(m) {
   document.getElementById("overlay").classList.add("show");
 }
 
-// ミニインタビューレポート（概要・担当者・見出し3つ＋本文3つ＋画像）を描画する
+// "### ■見出し\n本文..." の形式のテキストを、見出しごとのブロックに分割する
+// 見出し行（### で始まる行）が見つからない場合は、全文を1つの本文として扱う
+function parseInterviewBlocks(text) {
+  if (!text || !text.trim()) return [];
+  const lines = text.split(/\r?\n/);
+  const blocks = [];
+  let current = null;
+
+  lines.forEach(line => {
+    const headingMatch = line.match(/^#{1,6}\s*(.+)$/);
+    if (headingMatch) {
+      if (current) blocks.push(current);
+      current = { title: headingMatch[1].trim(), bodyLines: [] };
+    } else {
+      if (!current) current = { title: "", bodyLines: [] };
+      current.bodyLines.push(line);
+    }
+  });
+  if (current) blocks.push(current);
+
+  return blocks
+    .map(b => ({ title: b.title, body: b.bodyLines.join("\n").trim() }))
+    .filter(b => b.title || b.body);
+}
+
+// ミニインタビューレポート（概要・担当者・本文・画像）を描画する
 // 該当データが1つもない場合はセクション自体を非表示にする
 function renderInterviewSection(m) {
   const wrap = document.getElementById("pInterviewSection");
-  const blocks = [
-    { title: m.interviewTitle1, body: m.interviewBody1 },
-    { title: m.interviewTitle2, body: m.interviewBody2 },
-    { title: m.interviewTitle3, body: m.interviewBody3 },
-  ].filter(b => b.title || b.body);
-
+  const blocks = parseInterviewBlocks(m.interviewFull);
   const hasSummary = !!(m.interviewSummary && m.interviewSummary.trim());
 
   if (!blocks.length && !m.interviewPhoto && !hasSummary) {
