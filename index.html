@@ -484,6 +484,22 @@ body {
   letter-spacing: 0.05em;
   margin-bottom: 0.6rem;
 }
+.interview-summary {
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.7;
+  white-space: pre-wrap;
+  background: var(--tag-bg);
+  border-radius: var(--radius-sm);
+  padding: 0.6rem 0.75rem;
+  margin-bottom: 0.85rem;
+}
+.interview-summary a { color: var(--accent); }
+.interview-interviewer {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 0.85rem;
+}
 .interview-block { margin-bottom: 0.85rem; }
 .interview-title {
   font-size: 13px;
@@ -649,6 +665,8 @@ const FIELD_MAP = {
   "インタビュー見出し3": "interviewTitle3",
   "インタビュー本文3":   "interviewBody3",
   "インタビュー画像URL": "interviewPhoto",
+  "インタビュー概要":   "interviewSummary",
+  "面談担当者":       "interviewer",
 };
 
 let allMembers = [];
@@ -1430,7 +1448,7 @@ function openPopup(m) {
   document.getElementById("overlay").classList.add("show");
 }
 
-// ミニインタビューレポート（見出し3つ＋本文3つ＋画像）を描画する
+// ミニインタビューレポート（概要・担当者・見出し3つ＋本文3つ＋画像）を描画する
 // 該当データが1つもない場合はセクション自体を非表示にする
 function renderInterviewSection(m) {
   const wrap = document.getElementById("pInterviewSection");
@@ -1440,16 +1458,30 @@ function renderInterviewSection(m) {
     { title: m.interviewTitle3, body: m.interviewBody3 },
   ].filter(b => b.title || b.body);
 
-  if (!blocks.length && !m.interviewPhoto) {
+  const hasSummary = !!(m.interviewSummary && m.interviewSummary.trim());
+  const hasInterviewer = !!(m.interviewer && m.interviewer.trim());
+
+  if (!blocks.length && !m.interviewPhoto && !hasSummary && !hasInterviewer) {
     wrap.innerHTML = "";
     return;
   }
 
   let html = '<div class="interview-wrap"><div class="interview-heading">ミニインタビュー</div>';
+
+  if (hasSummary) {
+    // 概要欄内のURLをリンク化しつつ、それ以外はエスケープしてそのまま表示
+    const escaped = escapeHtml(m.interviewSummary);
+    const linked = escaped.replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" rel="noopener">$1</a>');
+    html += `<div class="interview-summary">${linked}</div>`;
+  }
+  if (hasInterviewer) {
+    html += `<div class="interview-interviewer">■面談担当者：${escapeHtml(m.interviewer)}</div>`;
+  }
+
   blocks.forEach(b => {
     html += `<div class="interview-block">`;
-    if (b.title) html += `<div class="interview-title">${b.title}</div>`;
-    if (b.body) html += `<div class="interview-body">${b.body}</div>`;
+    if (b.title) html += `<div class="interview-title">${escapeHtml(b.title)}</div>`;
+    if (b.body) html += `<div class="interview-body">${escapeHtml(b.body)}</div>`;
     html += `</div>`;
   });
   if (m.interviewPhoto) {
@@ -1457,6 +1489,13 @@ function renderInterviewSection(m) {
   }
   html += `</div>`;
   wrap.innerHTML = html;
+}
+
+// HTMLエスケープ（自己紹介文中に < > & などが含まれても崩れないようにする）
+function escapeHtml(str) {
+  const div = document.createElement("div");
+  div.textContent = str;
+  return div.innerHTML;
 }
 function closePopup() { document.getElementById("overlay").classList.remove("show"); }
 function handleOverlayClick(e) { if(e.target===document.getElementById("overlay")) closePopup(); }
