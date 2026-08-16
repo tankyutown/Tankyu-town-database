@@ -7,39 +7,18 @@
 <link rel="icon" type="image/png" href="https://lh3.googleusercontent.com/d/1dhaR3knbBfjD3kqv59wwywu-jiMclwTY">
 <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;500;700&display=swap" rel="stylesheet">
 
-<script type="module">
+<script>
 /* ============================================================
    ★★★ 設定エリア — 編集が必要なのはここだけです ★★★
    ============================================================
-   Firebaseコンソール →「プロジェクトの設定」→「マイアプリ」に
-   表示される firebaseConfig の値をそのまま貼り付け
+   APPS_SCRIPT_URL：Apps Scriptを「ウェブアプリ」としてデプロイした際に
+   表示される「ウェブアプリのURL」（.../exec で終わるもの）を貼り付け
+   （末尾に ?page=members は自動で付加されるので含めなくてOK）
    ============================================================ */
-const firebaseConfig = {
-  apiKey: "AIzaSyB3NS5TAUz9JAiyNRxGX224fQGjI3ak9uE",
-  authDomain: "tankyutown-database.firebaseapp.com",
-  projectId: "tankyutown-database",
-  storageBucket: "tankyutown-database.firebasestorage.app",
-  messagingSenderId: "24029502096",
-  appId: "1:24029502096:web:b82d4c4107b26dab011615"
-};
+const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyCP1ANo82YhaAGYbP9kk0AWbhY5HDJVmXNUZHqnleFxDIhcWjidx9dOaoQymha6qHL/exec";
 /* ============================================================
    設定エリアここまで — 以下は編集不要です
    ============================================================ */
-
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
-import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
-
-const firebaseApp = initializeApp(firebaseConfig);
-const db = getFirestore(firebaseApp);
-
-// Firestoreからメンバー一覧を取得し、グローバルに公開する
-// （下の通常スクリプトブロックからはモジュールの変数を直接参照できないため、windowに載せる）
-window.fetchMembersFromFirestore = async function () {
-  const snapshot = await getDocs(collection(db, "members"));
-  const rows = [];
-  snapshot.forEach(docSnap => rows.push(docSnap.data()));
-  return rows;
-};
 </script>
 
 <style>
@@ -725,25 +704,8 @@ function getRegion(locTag) {
   return "海外";
 }
 
-// ---- データ取得（Firestoreから直接取得） ----
+// ---- データ取得 ----
 const MEMBER_CACHE_KEY = "memberDirectoryCache";
-
-// Firebaseの設定は type="module" スクリプトで非同期に読み込まれるため、
-// window.fetchMembersFromFirestore がまだ定義されていない場合に備えて少し待つ
-function waitForFirestoreReady_(timeoutMs = 5000) {
-  return new Promise((resolve, reject) => {
-    const start = Date.now();
-    (function check() {
-      if (typeof window.fetchMembersFromFirestore === "function") {
-        resolve();
-      } else if (Date.now() - start > timeoutMs) {
-        reject(new Error("Firestoreの初期化がタイムアウトしました"));
-      } else {
-        setTimeout(check, 50);
-      }
-    })();
-  });
-}
 
 async function fetchData() {
   // ① 前回取得したデータがあれば、まず即表示する
@@ -754,15 +716,15 @@ async function fetchData() {
     } catch(e) { /* キャッシュが壊れていれば無視して通常取得へ */ }
   }
 
-  // ② 裏側でFirestoreから最新データを取得し、表示とキャッシュを更新する
+  // ② 裏側で最新データを取得し、表示とキャッシュを更新する
   try {
-    await waitForFirestoreReady_();
-    const rows = await window.fetchMembersFromFirestore();
+    const res = await fetch(`${APPS_SCRIPT_URL}?page=members`);
+    const rows = await res.json();
     localStorage.setItem(MEMBER_CACHE_KEY, JSON.stringify(rows));
     processMemberRows(rows);
   } catch(e) {
     if (!cached) {
-      document.getElementById("cardGrid").innerHTML = '<div class="state-msg">データの読み込みに失敗しました。<br>Firebaseの設定を確認してください。</div>';
+      document.getElementById("cardGrid").innerHTML = '<div class="state-msg">データの読み込みに失敗しました。<br>Apps ScriptのURLとデプロイ設定を確認してください。</div>';
       document.getElementById("headerCount").textContent = "エラー";
     }
     // キャッシュ表示が出ている場合は、エラーは静かに無視する
@@ -813,7 +775,7 @@ function formatDate(val) {
     const d = Number(match[3]);
     return `${y}年${m}月${d}日`;
   }
-  // Firestore同期時に変換された YYYY-MM-DD 形式
+  // Apps Scriptが返す YYYY-MM-DD 形式
   match = val.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
   if (match) {
     return `${match[1]}年${Number(match[2])}月${Number(match[3])}日`;
@@ -876,7 +838,7 @@ function dateToNum(val) {
     const d = Number(match[3]);
     return y * 10000 + m * 100 + d;
   }
-  // Firestore同期時に変換された YYYY-MM-DD 形式
+  // Apps Scriptが返す YYYY-MM-DD 形式
   match = val.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
   if (match) {
     return Number(match[1]) * 10000 + Number(match[2]) * 100 + Number(match[3]);
